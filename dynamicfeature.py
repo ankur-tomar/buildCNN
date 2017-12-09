@@ -6,9 +6,8 @@ import torch.optim as optim
 import torch
 import torchvision
 import torchvision.transforms as transforms
-import math
 import numpy as np
-import time
+import math
 
 
 class Net(nn.Module):
@@ -26,12 +25,13 @@ class Net(nn.Module):
         self.conv2 = nn.Conv2d(feature_set[0], feature_set[1], 8, padding=3)
         self.bn2 = nn.BatchNorm2d(feature_set[1],eps=1e-3) 
 
-        self.conv3 = nn.Conv2d(feature_set[1], feature_set[2], 4, padding=3)
+        self.conv3 = nn.Conv2d(feature_set[1], feature_set[2], 5, padding=3)
         self.bn3 = nn.BatchNorm2d(feature_set[2],eps=1e-3)      
 
         self.pool = nn.MaxPool2d(4, 2)
+        self.pool3 = nn.MaxPool2d(2,2)
 
-        self.fc1 = nn.Linear(feature_set[2]*3*3,feature_set[3])
+        self.fc1 = nn.Linear(feature_set[2]*4*4,feature_set[3])
         self.bnfc1 = nn.BatchNorm1d(feature_set[3],eps=1e-3)
 
         self.fc2 = nn.Linear(feature_set[3],10)
@@ -51,23 +51,14 @@ class Net(nn.Module):
 
 
     def forward(self, x):
-        
-        #print(x.size())
+
         x = self.pool(F.relu(self.bn1(self.conv1(x))))
-        #print(x.size())
         x = self.pool(F.relu(self.bn2(self.conv2(x))))
-        #print(x.size())
-        #test
         x=F.relu(self.bn3(self.conv3(x)))
-        #print("After 3rd conv and BN",x.size())
-        x = self.pool(x)
-        #print("After final pooling", x.size())
-
-        x = x.view(-1, self.feature_set[2] * 3 * 3)
-
+        x = self.pool3(x)
+        x = x.view(-1, self.feature_set[2] * 4 * 4)
         x = F.relu(self.bnfc1(self.fc1(x)))
         x = self.fc2(x)
-        
         return x
 
 def predict_y(X, net):
@@ -95,7 +86,7 @@ def getMetric(weights, t_not, t_not_l2, conv = True):
         t = weights - torch.mean(weights)
         a = torch.mul(t, t_not)
         num = torch.sum(a,1)
-
+        t_l2 = getL2(weights)
     den = t_l2 * t_not_l2
 
     #print num
@@ -120,7 +111,7 @@ def getL2(weights):
 
 
 def main():
-    feature_set = [1,1,1,190]
+    feature_set = [1,1,1,1]
     net = Net(feature_set)
     weights = list(net.conv1.parameters())[0].data
     t_not = getDiffFromMean(weights)
@@ -223,20 +214,17 @@ def main():
                 feature_set[2] += 1
                 reset = True
 
-            # weights = list(net.fc2.parameters())[0].data
-            # print weights.size()
+            weights = list(net.fc2.parameters())[0].data
 
-            # c1 = getMetric(weights, t_not_4, t_not_l2_4, conv = False)
+            c1 = getMetric(weights, t_not_4, t_not_l2_4, conv = False)
 
-            # print c1.size()
+            a = torch.max(c1)
 
-            # a = torch.max(c1)
-
-            # print "Layer 4", a
+            print "Layer 4", a
             
-            # if a < 1 - eps:
-            #     feature_set[3] += 1
-            #     reset = True
+            if a < 1 - eps:
+                feature_set[3] += 1
+                reset = True
 
             # weights = list(net.fc1.parameters())[0].data
 
@@ -260,23 +248,23 @@ def main():
                       (epoch + 1, i + 1, running_loss / 2000))
                 running_loss = 0.0
 
-            # if reset:
-            #     net = Net(feature_set)
-            #     weights = list(net.conv1.parameters())[0].data
-            #     t_not = getDiffFromMean(weights)
-            #     t_not_l2 = getL2(weights)
+            if reset:
+                net = Net(feature_set)
+                weights = list(net.conv1.parameters())[0].data
+                t_not = getDiffFromMean(weights)
+                t_not_l2 = getL2(weights)
 
-            #     weights = list(net.conv2.parameters())[0].data
-            #     t_not_2 = getDiffFromMean(weights)
-            #     t_not_l2_2 = getL2(weights)
+                weights = list(net.conv2.parameters())[0].data
+                t_not_2 = getDiffFromMean(weights)
+                t_not_l2_2 = getL2(weights)
 
-            #     weights = list(net.conv3.parameters())[0].data
-            #     t_not_3 = getDiffFromMean(weights)
-            #     t_not_l2_3 = getL2(weights)
+                weights = list(net.conv3.parameters())[0].data
+                t_not_3 = getDiffFromMean(weights)
+                t_not_l2_3 = getL2(weights)
 
-            #     weights = list(net.fc2.parameters())[0].data
-            #     t_not_4 = getDiffFromMean(weights)
-            #     t_not_l2_4 = getL2(weights)
+                weights = list(net.fc2.parameters())[0].data
+                t_not_4 = getDiffFromMean(weights)
+                t_not_l2_4 = getL2(weights)
 
         torch.save(net, './saved_models/model_' + str(epoch))
 
