@@ -77,47 +77,66 @@ def predict_y(X, net):
     return class_pred
 
 def getMetric(weights, t_not, t_not_l2, conv = True):
-    t = weights - torch.mean(weights)
-
-    t_l2 = math.sqrt(torch.norm(weights))
-
-    a = torch.mul(t, t_not)
+    
 
     if conv:
-        num = torch.sum(a, 1)
-        num = torch.sum(num, 1)
-        num = torch.sum(num, 1)
+        t = getDiffFromMean(weights)
+        #print t.size()
+        t_l2 = getL2(weights)
+        #print t_l2.size()
+
+        a = torch.mul(t, t_not)
+
+        num = torch.sum(a, 0)
+
+
 
     else:
-        print "IN GET METRIC"
-        print a.size()
+        t = weights - torch.mean(weights)
+        a = torch.mul(t, t_not)
         num = torch.sum(a,1)
-        print num.size()
 
     den = t_l2 * t_not_l2
+
+    #print num
+    #print den
 
     c = (1 - (num/den))
 
     return c
 
+def getDiffFromMean(weights):
+    weights = weights.view(weights.size()[0], -1)
+    means = torch.mean(weights, 1)
+    w = weights.view(weights.size()[1], weights.size()[0])
+    t = w - means
+    return t
+
+def getL2(weights):
+    weights = weights.view(weights.size()[0], -1)
+    t_l2 = torch.norm(weights, 2, 1)
+    return t_l2
+
+
+
 def main():
-    feature_set = [1,1,1,1]
+    feature_set = [1,1,1,190]
     net = Net(feature_set)
     weights = list(net.conv1.parameters())[0].data
-    t_not = weights - torch.mean(weights)
-    t_not_l2 = math.sqrt(torch.norm(weights))
+    t_not = getDiffFromMean(weights)
+    t_not_l2 = getL2(weights)
 
     weights = list(net.conv2.parameters())[0].data
-    t_not_2 = weights - torch.mean(weights)
-    t_not_l2_2 = math.sqrt(torch.norm(weights))
+    t_not_2 = getDiffFromMean(weights)
+    t_not_l2_2 = getL2(weights)
 
     weights = list(net.conv3.parameters())[0].data
-    t_not_3 = weights - torch.mean(weights)
-    t_not_l2_3 = math.sqrt(torch.norm(weights))
+    t_not_3 = getDiffFromMean(weights)
+    t_not_l2_3 = getL2(weights)
 
     weights = list(net.fc2.parameters())[0].data
-    t_not_4 = weights - torch.mean(weights)
-    t_not_l2_4 = math.sqrt(torch.norm(weights))
+    t_not_4 = getDiffFromMean(weights)
+    t_not_l2_4 = getL2(weights)
 
     transform = transforms.Compose([transforms.Pad(2),transforms.ToTensor(),transforms.Normalize((0, 0, 0), (1, 1, 1))])
 
@@ -204,20 +223,20 @@ def main():
                 feature_set[2] += 1
                 reset = True
 
-            weights = list(net.fc2.parameters())[0].data
-            print weights.size()
+            # weights = list(net.fc2.parameters())[0].data
+            # print weights.size()
 
-            c1 = getMetric(weights, t_not_4, t_not_l2_4, conv = False)
+            # c1 = getMetric(weights, t_not_4, t_not_l2_4, conv = False)
 
-            print c1.size()
+            # print c1.size()
 
-            a = torch.max(c1)
+            # a = torch.max(c1)
 
-            print "Layer 4", a
+            # print "Layer 4", a
             
-            if a < 1 - eps:
-                feature_set[3] += 1
-                reset = True
+            # if a < 1 - eps:
+            #     feature_set[3] += 1
+            #     reset = True
 
             # weights = list(net.fc1.parameters())[0].data
 
@@ -241,24 +260,23 @@ def main():
                       (epoch + 1, i + 1, running_loss / 2000))
                 running_loss = 0.0
 
-            if reset:
-                net = Net(feature_set)
-                weights = list(net.conv1.parameters())[0].data
-                t_not = weights - torch.mean(weights)
-                t_not_l2 = math.sqrt(torch.norm(weights))
+            # if reset:
+            #     net = Net(feature_set)
+            #     weights = list(net.conv1.parameters())[0].data
+            #     t_not = getDiffFromMean(weights)
+            #     t_not_l2 = getL2(weights)
 
-                weights = list(net.conv2.parameters())[0].data
-                t_not_2 = weights - torch.mean(weights)
-                t_not_l2_2 = math.sqrt(torch.norm(weights))
+            #     weights = list(net.conv2.parameters())[0].data
+            #     t_not_2 = getDiffFromMean(weights)
+            #     t_not_l2_2 = getL2(weights)
 
-                weights = list(net.conv3.parameters())[0].data
-                t_not_3 = weights - torch.mean(weights)
-                t_not_l2_3 = math.sqrt(torch.norm(weights))
+            #     weights = list(net.conv3.parameters())[0].data
+            #     t_not_3 = getDiffFromMean(weights)
+            #     t_not_l2_3 = getL2(weights)
 
-                weights = list(net.fc2.parameters())[0].data
-
-                t_not_4 = weights - torch.mean(weights)
-                t_not_l2_4 = math.sqrt(torch.norm(weights))
+            #     weights = list(net.fc2.parameters())[0].data
+            #     t_not_4 = getDiffFromMean(weights)
+            #     t_not_l2_4 = getL2(weights)
 
         torch.save(net, './saved_models/model_' + str(epoch))
 
